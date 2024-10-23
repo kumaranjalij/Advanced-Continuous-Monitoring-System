@@ -115,6 +115,14 @@ run_metric_scripts() {
         exit 1
     fi
 
+    ./Collect_Metrics/collect_docker.sh &
+    docker_pid=$!
+
+    if ! kill -0 $docker_pid 2>/dev/null; then
+        echo "Error: Docker metrics collection script failed to start."
+        exit 1
+    fi
+
     echo "Metric collection scripts are running."
 
     # Trap SIGINT and SIGTERM to stop scripts gracefully
