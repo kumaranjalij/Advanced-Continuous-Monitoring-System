@@ -26,52 +26,6 @@ sanitize_container_name() {
     echo "$1" | tr -d ' ' | tr ',' '_'
 }
 
-# # Function to collect Docker container metrics
-# collect_docker_metrics() {
-#     # Get container IDs and names
-#     container_info=$(docker ps --format "{{.ID}},{{.Names}}")
-
-#     # Loop through each container and extract its metrics
-#     while IFS=',' read -r container_id container_name; do
-#         # Collect metrics for the specific container ID
-#         docker_stats=$(docker stats --no-stream --format \
-#         "{{.CPUPerc}},{{.MemUsage}},{{.NetIO}},{{.BlockIO}},{{.PIDs}}" "$container_id")
-
-#         IFS=',' read -r cpu mem netio blockio pids <<< "$docker_stats"
-
-#         # Remove non-numeric parts from CPU
-#         cpu=$(echo $cpu | tr -d '%')
-
-#         # Extract numeric memory usage and convert to bytes
-#         mem_usage=$(echo $mem | awk '{print $1}')
-#         mem_usage_bytes=$(convert_to_bytes $mem_usage)
-
-#         # Extract and convert net and block I/O values
-#         net_rx=$(echo $netio | cut -d'/' -f1 | tr -d ' ')
-#         net_rx_bytes=$(convert_to_bytes $net_rx)
-
-#         net_tx=$(echo $netio | cut -d'/' -f2 | tr -d ' ')
-#         net_tx_bytes=$(convert_to_bytes $net_tx)
-
-#         block_read=$(echo $blockio | cut -d'/' -f1 | tr -d ' ')
-#         block_read_bytes=$(convert_to_bytes $block_read)
-
-#         block_write=$(echo $blockio | cut -d'/' -f2 | tr -d ' ')
-#         block_write_bytes=$(convert_to_bytes $block_write)
-
-#         # Sanitize the container name for InfluxDB
-#         sanitized_container_name=$(sanitize_container_name "$container_name")
-
-#         # Format the fields for InfluxDB, including the container name
-#         fields="container_id=$container_id,container_name=$sanitized_container_name,cpu_usage=$cpu,mem_usage=$mem_usage_bytes,net_rx=$net_rx_bytes,net_tx=$net_tx_bytes,block_read=$block_read_bytes,block_write=$block_write_bytes,pids=$pids"
-#         echo "Docker Container $sanitized_container_name ($container_id) data: $fields"
-
-#         # Push data to InfluxDB
-#         push_to_influxdb "$INFLUXDB_MEASUREMENT_DOCKER" "$fields"
-#         # push_to_influxdb "$INFLUXDB_MEASUREMENT_DOCKER,container=$sanitized_container_name" "$fields"
-
-#     done <<< "$container_info"
-# }
 
 # Function to collect Docker container metrics
 collect_docker_metrics() {
@@ -109,16 +63,20 @@ collect_docker_metrics() {
         # Sanitize the container name for InfluxDB
         sanitized_container_name=$(sanitize_container_name "$container_name")
 
-        # Format the fields for InfluxDB, including the container name
-        # Ensure floating-point values are correctly formatted
-        fields="container_id=\"$container_id\",container_name=\"$sanitized_container_name\",cpu_usage=$cpu,mem_usage=$mem_usage_bytes,net_rx=$net_rx_bytes,net_tx=$net_tx_bytes,block_read=$block_read_bytes,block_write=$block_write_bytes,pids=$pids"
-        echo "Docker Container $sanitized_container_name ($container_id) data: $fields"
+        # Format the tags and fields for InfluxDB
+        # Tags: container_id, container_name
+        # Fields: cpu_usage, mem_usage, net_rx, net_tx, block_read, block_write, pids
+        fields="cpu_usage=$cpu,mem_usage=$mem_usage_bytes,net_rx=$net_rx_bytes,net_tx=$net_tx_bytes,block_read=$block_read_bytes,block_write=$block_write_bytes,pids=$pids"
+        tags="container_id=\"$container_id\",container_name=\"$sanitized_container_name\""
+        
+        echo "Docker Container $sanitized_container_name ($container_id) data: $tags $fields"
 
-        # Push data to InfluxDB
-        push_to_influxdb "$INFLUXDB_MEASUREMENT_DOCKER" "$fields"
+        # Push data to InfluxDB with tags and fields
+        push_to_influxdb "$INFLUXDB_MEASUREMENT_DOCKER,$tags" "$fields"
 
     done <<< "$container_info"
 }
+
 
 
 # Function to collect Docker container status (number of running/stopped containers)
