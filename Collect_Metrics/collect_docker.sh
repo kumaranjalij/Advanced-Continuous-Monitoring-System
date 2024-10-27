@@ -5,6 +5,13 @@ source Collect_Metrics/common_functions.sh
 
 INFLUXDB_MEASUREMENT_DOCKER="docker_container_metrics"
 INFLUXDB_MEASUREMENT_CONTAINER_STATUS="container_status_metrics"
+INFLUXDB_MEASUREMENT_DEPLOYMENT_STATUS="docker_deployment_metrics"
+INFLUXDB_MEASUREMENT_EXIT_STATUS="docker_exit_status"
+INFLUXDB_MEASUREMENT_DOCKER_DEPLOYMENT_COUNT="docker_deployment_count"
+
+successful_deployments=0
+failed_deployments=0
+
 
 # Convert human-readable sizes to bytes
 convert_to_bytes() {
@@ -25,6 +32,14 @@ convert_to_bytes() {
 sanitize_container_name() {
     echo "$1" | tr -d ' ' | tr ',' '_'
 }
+
+# # Function to push deployment data to InfluxDB
+# push_deployment_to_influxdb() {    
+#     local timestamp=$(date +%s%N)  # Nanoseconds
+
+#     curl -i -XPOST "http://$INFLUXDB_HOST:$INFLUXDB_PORT/write?db=$INFLUXDB_DATABASE" \
+#     --data-binary "docker_deployments count=1 $timestamp"
+# }
 
 
 # Function to collect Docker container metrics
@@ -78,7 +93,6 @@ collect_docker_metrics() {
 }
 
 
-
 # Function to collect Docker container status (number of running/stopped containers)
 collect_container_status() {
     running_containers=$(docker ps -q | wc -l)
@@ -93,9 +107,65 @@ collect_container_status() {
     push_to_influxdb "$INFLUXDB_MEASUREMENT_CONTAINER_STATUS" "$fields"
 }
 
-# Run both functions in a loop
+# Track the number of deployments and failures
+collect_container_deployment_status() {
+    # successful_deployments=0
+    # failed_deployments=0
+
+    # Monitor Docker events
+    docker events --filter 'event=start' --filter 'event=die' |
+    while read event; do
+        if echo "$event" | grep "start"; then
+            ((successful_deployments++))
+            echo "Successful deployments: $successful_deployments"
+            push_to_influxdb "$INFLUXDB_MEASUREMENT_DOCKER_DEPLOYMENT_COUNT" "count=1" # Push to InfluxDB each time a container starts
+        elif echo "$event" | grep "die"; then
+            ((failed_deployments++))
+            echo "Failed deployments: $failed_deployments"
+        fi
+    done
+
+    # Format the fields for InfluxDB
+    fields="successful_deployments=$successful_deployments,failed_deployments=$failed_deployments"
+    echo "Docker container deployment status: $fields"
+
+    # Push container status to InfluxDB
+    push_to_influxdb "$INFLUXDB_MEASUREMENT_DEPLOYMENT_STATUS" "$fields"
+}
+
+# Count pass and fail statuses based on exit codes
+docker_container_exit_status()
+{
+    pass_count=0
+    fail_count=0
+
+    # Get the list of containers
+    container_ids=$(docker ps -a -q)
+
+    # Loop through containers to check their exit codes
+    for container_id in $container_ids; do
+        exit_code=$(docker inspect $container_id --format='{{.State.ExitCode}}')
+        if [ "$exit_code" -eq 0 ]; then
+            ((pass_count++))
+        else
+            ((fail_count++))
+        fi
+    done
+
+    # Format the fields for InfluxDB
+    fields="pass_count=$pass_count,fail_count=$fail_count"
+    echo "Docker container exit status: $fields"
+
+    # Push container status to InfluxDB
+    push_to_influxdb "$INFLUXDB_MEASUREMENT_EXIT_STATUS" "$fields"
+}
+
+# Run functions in a loop
 while true; do
     collect_docker_metrics
     collect_container_status
+    collect_container_deployment_status
+    docker_container_exit_status
+
     sleep 1
 done
