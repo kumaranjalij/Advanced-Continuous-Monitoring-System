@@ -16,9 +16,8 @@ memory, network, and IO metrics, as well as docker container performance. The to
 ```bash
 Real-Time Performance Monitoring System for Linux Environments/
 ├── Collect Metrics/
-│   ├── collect_cpu.sh
-|   ├── collect_memory.sh
 |   ├── collect_docker.sh
+│   ├── collect_memory.sh
 │   └── .........
 └── automate_metrics_pipeline.sh
 
