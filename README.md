@@ -14,10 +14,11 @@ memory, network, and IO metrics, as well as docker container performance. The to
 ## File Structure
 
 ```bash
-Real-Time Performance Monitoring System for Linux Environments/
+Advanced-Continuous-Monitoring-System/
 ├── Collect Metrics/
-|   ├── collect_docker.sh
+│   ├── collect_cpu.sh
 │   ├── collect_memory.sh
+│   ├── collect_docker.sh
 │   └── .........
 └── automate_metrics_pipeline.sh
 
