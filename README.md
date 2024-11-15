@@ -60,10 +60,10 @@ Advanced-Continuous-Monitoring-System/
 **2. Configure Database Settings:** Update common_functions.sh with your InfluxDB connection details if different from the defaults.
 
 **3. Run the Automated Pipeline:** Execute the automate_metrics_pipeline.sh file, which automates the entire setup process: 
-- Starts InfluxDB and Grafana servers.
+- Starts *InfluxDB* and *Grafana* servers.
 - Runs data collection scripts to gather system and Docker metrics.
-- Pushes data to InfluxDB for storage.
-- Opens Grafana to display real-time visualizations.
+- Pushes data to *InfluxDB* for storage.
+- Opens *Grafana* to display real-time visualizations.
 
 ```
  ./automate_metrics_pipeline.sh
